@@ -31,7 +31,7 @@ jobs:
 
       # 步骤 3: 执行你的脚本，它会生成 daily-add.json 文件
       - name: Run daily fetch script
-        run: node tools/daily-fetch.mjs
+        run: node tools/fetch-daily.mjs
 
       # 步骤 4: (新增) 提交并推送更改
       - name: Commit and push changes
