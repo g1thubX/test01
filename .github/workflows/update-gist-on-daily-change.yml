@@ -41,22 +41,33 @@ jobs:
       - name: Update Gist
         if: steps.check_changes.outputs.changed == 'true'
         run: |
-          # 读取最新的 daily-add.json 文件内容
-          FILE_CONTENT=$(cat extension/daily-add.json)
+          # 读取文件内容，并进行必要的转义
+          # - 将 \ 转义为 \\
+          # - 将 " 转义为 \"
+          # - 将 $ 转义为 \$
+          # - 将 ` 转义为 \`
+          # 这是为了确保 JSON 字符串的格式正确
+          FILE_CONTENT=$(cat extension/daily-add.json | sed 's/\\/\\\\/g; s/"/\\"/g; s/\$/\\$/g; s/`/\\`/g')
 
-          # 使用 curl 调用 GitHub API 更新 Gist
           GIST_ID="6154a4acda6784b87cf318d93eb2b5b0"
           GIST_FILENAME="banana.json"
 
-          # 使用 jq 和管道来安全地构造并发送 JSON
-          # 1. jq 生成完整的 JSON 结构
-          # 2. | (管道) 将 jq 的输出直接作为 curl 的标准输入
-          # 3. curl 使用 -d @- 从标准输入读取数据
-          jq -n --arg content "$FILE_CONTENT" '{ "files": { ("'"$GIST_FILENAME"'"): { "content": $content } } }' | \
+          # 使用 printf 构建完整的 JSON 请求体
+          # 这比 jq 更稳定，不受参数长度限制
+          JSON_PAYLOAD=$(printf '{
+            "files": {
+              "%s": {
+                "content": "%s"
+              }
+            }
+          }' "$GIST_FILENAME" "$FILE_CONTENT")
+
+          # 使用 curl 发送请求
           curl -X PATCH \
             -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
-            -d @- \
+            -d "$JSON_PAYLOAD" \
             "https://api.github.com/gists/$GIST_ID"
-          
-          echo "Gist updated successfully."
+
+          echo "Gist updated successfully without jq."
+
