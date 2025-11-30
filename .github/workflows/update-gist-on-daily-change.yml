@@ -66,6 +66,6 @@ jobs:
           # 4. 清理临时文件
           rm "$PAYLOAD_FILE"
 
-          echo "Gist updated successfully using a temporary file."
+          echo "Gist updated successfully using a temporary file." 
 
 
