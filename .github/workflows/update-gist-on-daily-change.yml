@@ -69,5 +69,5 @@ jobs:
             -d "$JSON_PAYLOAD" \
             "https://api.github.com/gists/$GIST_ID"
 
-          echo "Gist updated successfully without jq."
+          echo "Gist updated successfully without jq." 
 
