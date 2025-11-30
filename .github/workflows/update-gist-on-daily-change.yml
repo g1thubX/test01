@@ -41,33 +41,31 @@ jobs:
       - name: Update Gist
         if: steps.check_changes.outputs.changed == 'true'
         run: |
-          # 读取文件内容，并进行必要的转义
-          # - 将 \ 转义为 \\
-          # - 将 " 转义为 \"
-          # - 将 $ 转义为 \$
-          # - 将 ` 转义为 \`
-          # 这是为了确保 JSON 字符串的格式正确
-          FILE_CONTENT=$(cat extension/daily-add.json | sed 's/\\/\\\\/g; s/"/\\"/g; s/\$/\\$/g; s/`/\\`/g')
-
+          # 定义变量
           GIST_ID="6154a4acda6784b87cf318d93eb2b5b0"
           GIST_FILENAME="banana.json"
+          PAYLOAD_FILE="payload.json"
 
-          # 使用 printf 构建完整的 JSON 请求体
-          # 这比 jq 更稳定，不受参数长度限制
-          JSON_PAYLOAD=$(printf '{
-            "files": {
-              "%s": {
-                "content": "%s"
-              }
-            }
-          }' "$GIST_FILENAME" "$FILE_CONTENT")
+          # 1. 读取文件内容并进行必要的转义
+          #    这次我们使用更强大的 jq 来进行转义，因为它更可靠
+          #    -R 读取原始输入，-s 将其作为单个字符串处理
+          ESCAPED_CONTENT=$(jq -Rsa . extension/daily-add.json)
 
-          # 使用 curl 发送请求
+          # 2. 使用 jq 构建完整的 JSON 请求体，并直接写入临时文件
+          jq -n --arg filename "$GIST_FILENAME" --arg content "$ESCAPED_CONTENT" \
+            '{ "files": { ($filename): { "content": $content } } }' > "$PAYLOAD_FILE"
+
+          # 3. 使用 curl 从临时文件中读取数据并发送请求
+          #    -d @payload_file 表示从文件读取数据体
           curl -X PATCH \
             -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
-            -d "$JSON_PAYLOAD" \
+            -d @"$PAYLOAD_FILE" \
             "https://api.github.com/gists/$GIST_ID"
 
-          echo "Gist updated successfully without jq." 
+          # 4. 清理临时文件
+          rm "$PAYLOAD_FILE"
+
+          echo "Gist updated successfully using a temporary file."
+
 
