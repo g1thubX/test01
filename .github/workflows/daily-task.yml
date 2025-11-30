@@ -4,14 +4,11 @@ name: Daily Fetch Task
 
 # 1. 定义触发器
 on:
-  # 定时触发，使用 cron 语法
-  # 这里设置为每天北京时间上午 9:00 (UTC 时间 01:00) 运行
+  # 定时触发，每天北京时间上午 9:00 (UTC 时间 01:00) 运行
   schedule:
-    # cron 语法: 分 时 日 月 周
-    # '0 1 * * *' 表示每天 UTC 时间的 1:00 执行
     - cron: '0 1 * * *'
   
-  # 允许你手动在 Actions 页面触发这个任务，方便调试
+  # 允许手动触发，方便调试
   workflow_dispatch:
 
 # 2. 定义任务
@@ -29,16 +26,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          # 指定 Node.js 版本，建议与你的开发环境一致或使用 'lts'
-          node-version: '20' 
-          # 如果你的项目有 package.json，可以缓存依赖以加速后续运行
-          cache: 'npm' 
+          # 指定 Node.js 版本
+          node-version: '20'
+          # --- 移除了 cache: 'npm' 这一行 ---
 
-      # 步骤 3: (可选但推荐) 安装依赖
-      # 如果你的 daily-fetch.mjs 依赖了 npm 包（如 axios, cheerio 等），此步骤是必需的
-      - name: Install dependencies
-        run: npm install
+      # --- 移除了 "Install dependencies" 这整个步骤 ---
 
-      # 步骤 4: 执行你的脚本
+      # 步骤 3: 直接执行你的脚本
       - name: Run daily fetch script
         run: node tools/daily-fetch.mjs
