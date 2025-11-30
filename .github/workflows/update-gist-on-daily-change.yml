@@ -1,0 +1,65 @@
+# .github/workflows/update-gist-on-daily-change.yml
+
+name: Update Gist on Daily-Add Change
+
+# 监听推送到 main 分支的事件
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  update-gist:
+    runs-on: ubuntu-latest
+    # 需要 contents 权限来检出代码，并且我们需要 secrets
+    permissions:
+      contents: read
+
+    steps:
+      # 步骤 1: 检出代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # 获取完整历史，以便我们能比较文件变更
+          fetch-depth: 2
+
+      # 步骤 2: 检查 daily-add.json 是否被修改
+      - name: Check for file changes
+        id: check_changes
+        run: |
+          # git diff --name-only HEAD^ HEAD 会列出最新一次提交相比上一次提交修改了哪些文件
+          # grep -q 'extension/daily-add.json' 会检查列表中是否包含我们的目标文件
+          if git diff --name-only HEAD^ HEAD | grep -q 'extension/daily-add.json'; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Target file 'extension/daily-add.json' was changed."
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "Target file was not changed. Skipping."
+          fi
+
+      # 步骤 3: 如果文件被修改，则更新 Gist
+      - name: Update Gist
+        # 只有当上一步的 changed=true 时，才执行此步骤
+        if: steps.check_changes.outputs.changed == 'true'
+        run: |
+          # 读取最新的 daily-add.json 文件内容
+          FILE_CONTENT=$(cat extension/daily-add.json)
+
+          # 使用 curl 调用 GitHub API 更新 Gist
+          # GIST_ID 是你提供的 URL 中的 ID: 6154a4acda6784b87cf318d93eb2b5b0
+          GIST_ID="6154a4acda6784b87cf318d93eb2b5b0"
+          GIST_FILENAME="banana.json"
+
+          # 构造 API 请求的 JSON 数据
+          # 注意：这里的 "content" 必须是 JSON 字符串，所以我们需要对 FILE_CONTENT 进行转义
+          # 使用 jq 工具可以安全地创建 JSON
+          JSON_PAYLOAD=$(jq -n --arg content "$FILE_CONTENT" '{ "files": { ("'"$GIST_FILENAME"'"): { "content": $content } } }')
+
+          # 发送 PATCH 请求到 Gist API
+          curl -X PATCH \
+            -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -d "$JSON_PAYLOAD" \
+            "https://api.github.com/gists/$GIST_ID"
+          
+          echo "Gist updated successfully."
